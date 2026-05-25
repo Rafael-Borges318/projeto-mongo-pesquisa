@@ -1,5 +1,7 @@
 import { MongoClient } from 'mongodb';
+import dns from 'dns';
 
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const URI = process.env.MONGO_URI;
 const DB_NAME = process.env.MONGO_DB || 'trabalhodb';

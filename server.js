@@ -1,4 +1,4 @@
-
+import 'dotenv/config';
 import OpenAI from "openai";
 import express from 'express';
 import connection from './db.js';
@@ -11,10 +11,15 @@ async function chatGptResponse(question, answer) {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   return client.chat.completions.create({
     model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
     messages: [
       {
+        role: "system",
+        content: "Você retorna apenas JSON válido, sem texto adicional."
+      },
+      {
         role: "user",
-        content: `${question}: ${answer} | A partir dessa pergunta e resposta, crie um json com 4 métricas. Cada metrica deve ter uma nota de 0 a 10. E sera necessario criar uma quinta metrica com o nome "avaliacaoGeral" que sera responsavel pela media das métricas.`
+        content: `Pergunta: ${question}\nResposta: ${answer}\n\nCrie um JSON com 4 métricas avaliando a resposta. Cada métrica deve ter uma nota de 0 a 10. Adicione uma quinta chave "avaliacaoGeral" com a média das 4 notas.`
       }
     ]
   });
