@@ -1,10 +1,20 @@
 import 'dotenv/config';
 import OpenAI from "openai";
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import connection from './db.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/favicon.ico', (_req, res) => res.status(204).end());
+app.get('/.well-known/*', (_req, res) => res.status(204).end());
+
 const COLLECTION = 'respostas';
 
 async function chatGptResponse(question, answer) {
@@ -32,8 +42,12 @@ app.get('/respostas', async (req, res) => {
 
     if (process.env.OPENAI_API_KEY) {
       await Promise.all(docs.map(async (doc) => {
-        const response = await chatGptResponse(doc.question, doc.answer);
-        doc.metricas = JSON.parse(response.choices[0].message.content);
+        try {
+          const response = await chatGptResponse(doc.question, doc.answer);
+          doc.metricas = JSON.parse(response.choices[0].message.content);
+        } catch (aiErr) {
+          console.warn(`IA falhou para "${doc.question?.slice(0, 40)}":`, aiErr.message);
+        }
       }));
     }
 

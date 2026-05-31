@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Respostas</title>
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .progress-bar { transition: width 0.6s ease; }
+    .card-enter { animation: fadeIn 0.4s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Dashboard de Respostas</h1>
+        <p class="text-sm text-gray-400">Avaliações geradas por IA</p>
+      </div>
+      <button id="btn-refresh"
+        class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all">
+        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582M20 20v-5h-.581M5.635 19A9 9 0 104.583 9.5" />
+        </svg>
+        Atualizar
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Stat cards -->
+    <div id="stats" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 hidden">
+      <div class="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
+        <div class="bg-blue-100 text-blue-600 rounded-full p-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">Total de Respostas</p>
+          <p id="stat-total" class="text-3xl font-bold text-gray-800">—</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
+        <div class="bg-green-100 text-green-600 rounded-full p-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">Média Geral</p>
+          <p id="stat-avg" class="text-3xl font-bold text-gray-800">—</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
+        <div class="bg-yellow-100 text-yellow-600 rounded-full p-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-xs text-gray-400 uppercase tracking-wide">Melhor Nota</p>
+          <p id="stat-best" class="text-3xl font-bold text-gray-800">—</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spinner -->
+    <div id="spinner" class="flex flex-col items-center justify-center py-24 gap-4 hidden">
+      <svg class="animate-spin h-12 w-12 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      </svg>
+      <p class="text-gray-500 text-sm">Aguardando avaliação da IA… pode levar alguns segundos.</p>
+    </div>
+
+    <!-- Error -->
+    <div id="error-box" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl p-5 mb-6 flex items-start gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a1 1 0 00.86 1.5h18.64a1 1 0 00.86-1.5L13.71 3.86a2 2 0 00-3.42 0z" />
+      </svg>
+      <div>
+        <p class="font-semibold">Erro ao carregar dados</p>
+        <p id="error-msg" class="text-sm mt-1"></p>
+      </div>
+    </div>
+
+    <!-- Cards container -->
+    <div id="cards" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+
+    <!-- Empty state -->
+    <div id="empty" class="hidden text-center py-20 text-gray-400">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6M7 4H4a1 1 0 00-1 1v14a1 1 0 001 1h16a1 1 0 001-1V5a1 1 0 00-1-1h-3M9 4a1 1 0 011-1h4a1 1 0 011 1v1H9V4z" />
+      </svg>
+      <p class="text-lg font-medium">Nenhuma resposta encontrada</p>
+      <p class="text-sm">O banco de dados está vazio.</p>
+    </div>
+
+  </main>
+
+<script>
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  const GERAL_KEYS = [
+    'avaliacaoGeral','avaliacao_geral','avaliacaogeral',
+    'mediaGeral','media_geral','mediageral',
+    'notaGeral','nota_geral','notageral',
+    'Media_geral','MediaGeral',
+    'overallScore','overall_score','overall',
+    'generalScore','general_score','general',
+    'finalScore','final_score','final',
+    'score','nota','media','average'
+  ];
+
+  function findGeralKey(metricas) {
+    const lower = Object.fromEntries(Object.keys(metricas).map(k => [k.toLowerCase(), k]));
+    for (const candidate of GERAL_KEYS) {
+      if (metricas[candidate] !== undefined) return candidate;
+      const found = lower[candidate.toLowerCase()];
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function parseScore(val) {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return isFinite(val) ? val : null;
+    if (typeof val === 'string') {
+      const n = parseFloat(val.replace(',', '.'));
+      return isFinite(n) ? n : null;
+    }
+    if (typeof val === 'object') {
+      for (const field of ['nota','value','score','val','n']) {
+        if (val[field] !== undefined) return parseScore(val[field]);
+      }
+      const first = Object.values(val)[0];
+      return first !== undefined ? parseScore(first) : null;
+    }
+    return null;
+  }
+
+  function humanize(key) {
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^\w/, c => c.toUpperCase());
+  }
+
+  function badgeColor(score) {
+    if (score === null) return { bg: 'bg-gray-200', text: 'text-gray-500', ring: 'ring-gray-300' };
+    if (score >= 9)  return { bg: 'bg-green-500',  text: 'text-white',     ring: 'ring-green-300' };
+    if (score >= 7)  return { bg: 'bg-blue-500',   text: 'text-white',     ring: 'ring-blue-300' };
+    if (score >= 5)  return { bg: 'bg-yellow-400', text: 'text-white',     ring: 'ring-yellow-300' };
+    return              { bg: 'bg-red-500',    text: 'text-white',     ring: 'ring-red-300' };
+  }
+
+  function barColor(score) {
+    if (score >= 9)  return 'bg-green-500';
+    if (score >= 7)  return 'bg-blue-500';
+    if (score >= 5)  return 'bg-yellow-400';
+    return 'bg-red-500';
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  function renderCard(doc, index) {
+    const metricas = doc.metricas || {};
+    const geralKey = findGeralKey(metricas);
+    const geralScore = geralKey !== null ? parseScore(metricas[geralKey]) : null;
+    const badge = badgeColor(geralScore);
+
+    const otherEntries = Object.entries(metricas)
+      .filter(([k]) => k !== geralKey)
+      .map(([k, v]) => [k, parseScore(v)])
+      .filter(([, v]) => v !== null && isFinite(v));
+
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-xl shadow-sm p-6 card-enter flex flex-col gap-4';
+    card.style.animationDelay = `${index * 60}ms`;
+
+    // Header: question + badge
+    const header = document.createElement('div');
+    header.className = 'flex items-start justify-between gap-3';
+
+    const question = document.createElement('p');
+    question.className = 'font-semibold text-gray-800 leading-snug flex-1';
+    question.textContent = doc.question || '(sem pergunta)';
+
+    const badgeEl = document.createElement('div');
+    badgeEl.className = `flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ring-2 ${badge.bg} ${badge.text} ${badge.ring}`;
+    badgeEl.textContent = geralScore !== null ? geralScore.toFixed(1) : '—';
+    badgeEl.title = 'Nota geral';
+
+    header.append(question, badgeEl);
+
+    // Answer (collapsible)
+    const answerWrap = document.createElement('div');
+    const answerText = doc.answer || '(sem resposta)';
+    const isLong = answerText.length > 180;
+
+    const answerP = document.createElement('p');
+    answerP.className = 'text-sm text-gray-600 leading-relaxed';
+    answerP.textContent = isLong ? answerText.slice(0, 180) + '…' : answerText;
+
+    answerWrap.append(answerP);
+
+    if (isLong) {
+      let expanded = false;
+      const toggle = document.createElement('button');
+      toggle.className = 'text-xs text-blue-500 hover:underline mt-1';
+      toggle.textContent = 'Ver mais';
+      toggle.onclick = () => {
+        expanded = !expanded;
+        answerP.textContent = expanded ? answerText : answerText.slice(0, 180) + '…';
+        toggle.textContent = expanded ? 'Ver menos' : 'Ver mais';
+      };
+      answerWrap.append(toggle);
+    }
+
+    // Metrics bars
+    let metricsSection = null;
+    if (otherEntries.length > 0) {
+      metricsSection = document.createElement('div');
+      metricsSection.className = 'space-y-2';
+
+      otherEntries.forEach(([key, val]) => {
+        const pct = Math.min(100, Math.max(0, (val / 10) * 100));
+        const row = document.createElement('div');
+        row.innerHTML = `
+          <div class="flex justify-between text-xs text-gray-500 mb-0.5">
+            <span>${humanize(key)}</span>
+            <span class="font-medium text-gray-700">${val.toFixed(1)}</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full progress-bar ${barColor(val)}" style="width:${pct}%"></div>
+          </div>`;
+        metricsSection.append(row);
+      });
+    } else if (Object.keys(metricas).length === 0) {
+      metricsSection = document.createElement('p');
+      metricsSection.className = 'text-xs text-gray-400 italic';
+      metricsSection.textContent = 'Avaliação por IA não disponível.';
+    }
+
+    card.append(header, answerWrap);
+    if (metricsSection) card.append(metricsSection);
+    return card;
+  }
+
+  // ── Fetch & display ───────────────────────────────────────────────────────
+
+  function show(id) {
+    ['spinner','error-box','cards','stats','empty'].forEach(el => {
+      document.getElementById(el)?.classList.add('hidden');
+    });
+    document.getElementById(id)?.classList.remove('hidden');
+  }
+
+  async function load() {
+    show('spinner');
+    document.getElementById('cards').innerHTML = '';
+    const btn = document.getElementById('btn-refresh');
+    btn.disabled = true;
+    document.getElementById('refresh-icon').classList.add('animate-spin');
+
+    try {
+      const res = await fetch('/respostas');
+      if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
+      const data = await res.json();
+      const docs = data.dados || [];
+
+      // Stats
+      const geralScores = docs
+        .map(d => {
+          const key = findGeralKey(d.metricas || {});
+          return key ? parseScore((d.metricas || {})[key]) : null;
+        })
+        .filter(v => v !== null);
+
+      document.getElementById('stat-total').textContent = docs.length;
+      document.getElementById('stat-avg').textContent = geralScores.length
+        ? (geralScores.reduce((a, b) => a + b, 0) / geralScores.length).toFixed(1)
+        : '—';
+      document.getElementById('stat-best').textContent = geralScores.length
+        ? Math.max(...geralScores).toFixed(1)
+        : '—';
+
+      document.getElementById('stats').classList.remove('hidden');
+
+      if (docs.length === 0) {
+        show('empty');
+        return;
+      }
+
+      const container = document.getElementById('cards');
+      container.classList.remove('hidden');
+      docs.forEach((doc, i) => container.append(renderCard(doc, i)));
+
+    } catch (err) {
+      document.getElementById('error-msg').textContent = err.message;
+      show('error-box');
+    } finally {
+      btn.disabled = false;
+      document.getElementById('refresh-icon').classList.remove('animate-spin');
+    }
+  }
+
+  document.getElementById('btn-refresh').addEventListener('click', load);
+  load();
+</script>
+</body>
+</html>
